@@ -2,13 +2,16 @@
 /**
  * Tiny-Tiny-RSS plugin
  * Setup custom fetch options per feed
+ * - proxy host and port
+ * - user-agent header
+ * - ssl certificate verification
  *
  * Hook: hook_fetch_feed
  *
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.1
+ * @version: 1.2
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
@@ -18,7 +21,7 @@ class Options_Per_Feed extends Plugin {
 	private $host;
 
 	function about() {
-		return array(1.1,
+		return array(1.2,
 			"Try to set options to only selected feeds",
 			"SergeyD");
 	}
@@ -99,9 +102,10 @@ class Options_Per_Feed extends Plugin {
 		$options = isset($options_feeds[$key]) !== FALSE ? $options_feeds[$key] : array(
 			"proxy_host": "",
 			"proxy_port": "",
-			"user_agent": ""
+			"user_agent": "",
+			"ssl_verify": true,
 		);
-		if (empty($options["proxy_host"]) && empty($options["user_agent"])) return $feed_data;
+		if (empty($options["proxy_host"]) && empty($options["user_agent"]) && !empty($options["ssl_verify"])) return $feed_data;
 
 		$ch = curl_init($fetch_url);
 
@@ -113,6 +117,10 @@ class Options_Per_Feed extends Plugin {
 		curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_ENCODING, "");
+
+		if (defined("CURLOPT_TCP_FASTOPEN")) {
+			curl_setopt($ch, CURLOPT_TCP_FASTOPEN, true);
+		}
 
 		if ($auth_login || $auth_pass) {
 			curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
@@ -129,6 +137,10 @@ class Options_Per_Feed extends Plugin {
 			curl_setopt($ch, CURLOPT_USERAGENT, $options["user_agent"]);
 		} else {
 			curl_setopt($ch, CURLOPT_USERAGENT, SELF_USER_AGENT);
+		}
+
+		if (empty($options["ssl_verify"])) {
+			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 		}
 
 		$feed_data = @curl_exec($ch);
@@ -239,33 +251,40 @@ class Options_Per_Feed extends Plugin {
 		$options = isset($options_feeds[$feed_id]) !== FALSE ? $options_feeds[$feed_id] : array(
 			"proxy_host": "",
 			"proxy_port": "",
-			"user_agent": ""
+			"user_agent": "",
+			"ssl_verify": true,
 		);
 
 		$proxy_host = $options["proxy_host"];
 		$proxy_port = $options["proxy_port"];
 		$user_agent = $options["user_agent"];
+		$ssl_verify = !empty($options["ssl_verify"]) ? "checked" : "";
 
 		print "<hr/><input dojoType=\"dijit.form.CheckBox\" type=\"checkbox\" id=\"options_per_feed_enabled\"
 			name=\"options_per_feed_enabled\"
 			$checked>&nbsp;<label for=\"options_per_feed_enabled\">".__('Options per feed enabled')."</label>";
 
-		print "<br>
+		print "<br/>
 				<input dojoType=\"dijit.form.TextBox\"
 				style=\"width : 20em;\"
 				name=\"options_per_feed_proxy_host\" value=\"$proxy_host\"
 				id=\"options_per_feed_proxy_host\">&nbsp;<label for=\"options_per_feed_proxy_host\">".__('Proxy host')."</label>";
 
-		print "<br><input dojoType=\"dijit.form.NumberTextBox\"
+		print "<br/><input dojoType=\"dijit.form.NumberTextBox\"
 				style=\"width : 20em;\"
 				name=\"options_per_feed_proxy_port\" value=\"$proxy_port\"
 				id=\"options_per_feed_proxy_port\">&nbsp;<label for=\"options_per_feed_proxy_port\">".__('Proxy port')."</label>";
 
-		print "<br>
+		print "<br/>
 				<input dojoType=\"dijit.form.TextBox\"
 				style=\"width : 20em;\"
 				name=\"options_per_feed_useragent\" value=\"$user_agent\"
 				id=\"options_per_feed_useragent\">&nbsp;<label for=\"options_per_feed_useragent\">".__('User-Agent')."</label>";
+
+		print "<br/><input dojoType=\"dijit.form.CheckBox\" type=\"checkbox\" id=\"options_per_feed_sslverify\"
+			name=\"options_per_feed_sslverify\"
+			$checked>&nbsp;<label for=\"options_per_feed_sslverify\">".__('Verify SSL certificate')."</label>";
+
 
 		print "</div>";
 	}
@@ -283,20 +302,23 @@ class Options_Per_Feed extends Plugin {
 		$options = isset($options_feeds[$feed_id]) !== FALSE ? $options_feeds[$feed_id] : array(
 			"proxy_host": "",
 			"proxy_port": "",
-			"user_agent": ""
+			"user_agent": "",
+			"ssl_verify": true,
 		);
 
 		$proxy_host = isset($_POST["options_per_feed_proxy_host"]) ? db_escape_string($_POST["options_per_feed_proxy_host"]) : '';
 		$proxy_port = isset($_POST["options_per_feed_proxy_port"]) ? db_escape_string($_POST["options_per_feed_proxy_port"]) : '';
 		$user_agent = isset($_POST["options_per_feed_useragent"]) ? db_escape_string($_POST["options_per_feed_useragent"]) : '';
+		$ssl_verify = isset($_POST["options_per_feed_sslverify"]) ? db_escape_string($_POST["options_per_feed_sslverify"]) : '';
 
 		if ($enable) {
 			if ($key === FALSE) {
 				array_push($enabled_feeds, $feed_id);
 			}
 			$options["proxy_host"] = $proxy_host;
-			$options["proxy_port"] = $proxy_port;
+			$options["proxy_port"] = (int)$proxy_port;
 			$options["user_agent"] = $user_agent;
+			$options["ssl_verify"] = (bool)$ssl_verify;
 			$options_feeds[$feed_id] = $options;
 		} else {
 			if ($key !== FALSE) {
