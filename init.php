@@ -100,10 +100,10 @@ class Options_Per_Feed extends Plugin {
 		if (!is_array($options_feeds)) return $feed_data;
 
 		$options = isset($options_feeds[$key]) !== FALSE ? $options_feeds[$key] : array(
-			"proxy_host": "",
-			"proxy_port": "",
-			"user_agent": "",
-			"ssl_verify": true,
+			"proxy_host" => "",
+			"proxy_port" => "",
+			"user_agent" => "",
+			"ssl_verify" => true,
 		);
 		if (empty($options["proxy_host"]) && empty($options["user_agent"]) && !empty($options["ssl_verify"])) return $feed_data;
 
@@ -249,10 +249,10 @@ class Options_Per_Feed extends Plugin {
 		$checked = $key !== FALSE ? "checked" : "";
 
 		$options = isset($options_feeds[$feed_id]) !== FALSE ? $options_feeds[$feed_id] : array(
-			"proxy_host": "",
-			"proxy_port": "",
-			"user_agent": "",
-			"ssl_verify": true,
+			"proxy_host" => "",
+			"proxy_port" => "",
+			"user_agent" => "",
+			"ssl_verify" => true,
 		);
 
 		$proxy_host = $options["proxy_host"];
@@ -300,10 +300,10 @@ class Options_Per_Feed extends Plugin {
 		$key = array_search($feed_id, $enabled_feeds);
 
 		$options = isset($options_feeds[$feed_id]) !== FALSE ? $options_feeds[$feed_id] : array(
-			"proxy_host": "",
-			"proxy_port": "",
-			"user_agent": "",
-			"ssl_verify": true,
+			"proxy_host" => "",
+			"proxy_port" => "",
+			"user_agent" => "",
+			"ssl_verify" => true,
 		);
 
 		$proxy_host = isset($_POST["options_per_feed_proxy_host"]) ? db_escape_string($_POST["options_per_feed_proxy_host"]) : '';
