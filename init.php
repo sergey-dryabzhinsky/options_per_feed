@@ -1,25 +1,25 @@
 <?php
 /**
  * Tiny-Tiny-RSS plugin
- * Setup proxy settings per feed
+ * Setup custom fetch options per feed
  *
  * Hook: hook_fetch_feed
  *
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.0
+ * @version: 1.1
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
 
-class Proxy_Per_Feed extends Plugin {
+class Options_Per_Feed extends Plugin {
 
 	private $host;
 
 	function about() {
-		return array(1.0,
-			"Try to set proxy to only selected feeds",
+		return array(1.1,
+			"Try to set options to only selected feeds",
 			"SergeyD");
 	}
 
@@ -75,11 +75,33 @@ class Proxy_Per_Feed extends Plugin {
 		$fetch_last_modified = "";
 
 
-		$proxy_feeds = $this->host->get($this, "proxy_feeds");
-		if (!is_array($proxy_feeds)) return $feed_data;
+		/* Try to use cache first */
+		$cache_filename = CACHE_DIR . "/simplepie/" . sha1($fetch_url) . ".xml";
 
-		$proxy = isset($proxy_feeds[$key]) !== FALSE ? $proxy_feeds[$key] : array("","");
-		if (empty($proxy[0])) return $feed_data;
+		if (!$feed_data &&
+			file_exists($cache_filename) &&
+			is_readable($cache_filename) &&
+			!$auth_login && !$auth_pass &&
+			filemtime($cache_filename) > time() - 30) {
+
+			_debug("plugin[options_per_feed]: using local cache [$cache_filename].", $debug_enabled);
+
+			@$feed_data = file_get_contents($cache_filename);
+
+			if ($feed_data) {
+				return $feed_data;
+			}
+		}
+
+		$options_feeds = $this->host->get($this, "options_feeds");
+		if (!is_array($options_feeds)) return $feed_data;
+
+		$options = isset($options_feeds[$key]) !== FALSE ? $options_feeds[$key] : array(
+			"proxy_host": "",
+			"proxy_port": "",
+			"user_agent": ""
+		);
+		if (empty($options["proxy_host"]) && empty($options["user_agent"])) return $feed_data;
 
 		$ch = curl_init($fetch_url);
 
@@ -88,16 +110,26 @@ class Proxy_Per_Feed extends Plugin {
 		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 		curl_setopt($ch, CURLOPT_MAXREDIRS, 20);
 		curl_setopt($ch, CURLOPT_HEADER, true);
-		curl_setopt($ch, CURLOPT_USERAGENT, SELF_USER_AGENT);
 		curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_ENCODING, "");
-		curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
 
-		if ($auth_login || $auth_pass)
+		if ($auth_login || $auth_pass) {
+			curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
 			curl_setopt($ch, CURLOPT_USERPWD, "$auth_login:$auth_pass");
+		}
 
-		curl_setopt($ch, CURLOPT_PROXY, "$proxy[0]:$proxy[1]");
+		if (!empty($options["proxy_host"])) {
+			$proxy_host = $options["proxy_host"];
+			$proxy_port = $options["proxy_port"];
+			curl_setopt($ch, CURLOPT_PROXY, "$proxy_host:$proxy_port");
+		}
+
+		if (!empty($options["user_agent"])) {
+			curl_setopt($ch, CURLOPT_USERAGENT, $options["user_agent"]);
+		} else {
+			curl_setopt($ch, CURLOPT_USERAGENT, SELF_USER_AGENT);
+		}
 
 		$feed_data = @curl_exec($ch);
 
@@ -136,7 +168,7 @@ class Proxy_Per_Feed extends Plugin {
 	function hook_prefs_tab($args) {
 		if ($args != "prefFeeds") return;
 
-		print "<div dojoType=\"dijit.layout.AccordionPane\" title=\"".__('Proxy settings (proxy_per_feed)')."\">";
+		print "<div dojoType=\"dijit.layout.AccordionPane\" title=\"".__('Feed custom fetch options (options_per_feed)')."\">";
 
 		print_notice("Enable the plugin for specific feeds in the feed editor.");
 
@@ -158,12 +190,12 @@ class Proxy_Per_Feed extends Plugin {
 
 		print_hidden("op", "pluginhandler");
 		print_hidden("method", "save");
-		print_hidden("plugin", "proxy_per_feed");
+		print_hidden("plugin", "options_per_feed");
 
-		$enable_proxy = $this->host->get($this, "enable_proxy");
+		$enable_flag = $this->host->get($this, "enable_options_per_feed");
 
-		print_checkbox("enable_proxy", $enable_proxy);
-		print "&nbsp;<label for=\"enable_proxy\">" . __("Use proxy for feed.") . "</label>";
+		print_checkbox("enable_options_per_feed", $enable_flag);
+		print "&nbsp;<label for=\"enable_options_per_feed\">" . __("Use custom fetch options for feed.") . "</label>";
 
 		print "<p>"; print_button("submit", __("Save"));
 		print "</form>";
@@ -192,34 +224,48 @@ class Proxy_Per_Feed extends Plugin {
 	}
 
 	function hook_prefs_edit_feed($feed_id) {
-		print "<div class=\"dlgSec\">".__("Proxy per feed")."</div>";
+		print "<div class=\"dlgSec\">".__("Options per feed")."</div>";
 		print "<div class=\"dlgSecCont\">";
 
 		$enabled_feeds = $this->host->get($this, "enabled_feeds");
 		if (!is_array($enabled_feeds)) $enabled_feeds = array();
 
-		$proxy_feeds = $this->host->get($this, "proxy_feeds");
-		if (!is_array($proxy_feeds)) $proxy_feeds = array();
+		$options_feeds = $this->host->get($this, "options_feeds");
+		if (!is_array($options_feeds)) $options_feeds = array();
 
-		$key = array_search($feed_id, $enabled_feeds);
+		$key = isset($options_feeds[$feed_id]);
 		$checked = $key !== FALSE ? "checked" : "";
 
-		$proxy = isset($proxy_feeds[$feed_id]) !== FALSE ? $proxy_feeds[$feed_id] : array("","");
+		$options = isset($options_feeds[$feed_id]) !== FALSE ? $options_feeds[$feed_id] : array(
+			"proxy_host": "",
+			"proxy_port": "",
+			"user_agent": ""
+		);
 
-		print "<hr/><input dojoType=\"dijit.form.CheckBox\" type=\"checkbox\" id=\"proxy_per_feed_enabled\"
-			name=\"proxy_per_feed_enabled\"
-			$checked>&nbsp;<label for=\"proxy_per_feed_enabled\">".__('Proxy enabled')."</label>";
+		$proxy_host = $options["proxy_host"];
+		$proxy_port = $options["proxy_port"];
+		$user_agent = $options["user_agent"];
+
+		print "<hr/><input dojoType=\"dijit.form.CheckBox\" type=\"checkbox\" id=\"options_per_feed_enabled\"
+			name=\"options_per_feed_enabled\"
+			$checked>&nbsp;<label for=\"options_per_feed_enabled\">".__('Options per feed enabled')."</label>";
 
 		print "<br>
 				<input dojoType=\"dijit.form.TextBox\"
 				style=\"width : 20em;\"
-				name=\"proxy_per_feed_host\" value=\"$proxy[0]\"
-				id=\"proxy_per_feed_host\">&nbsp;<label for=\"proxy_per_feed_host\">".__('Proxy host')."</label>";
+				name=\"options_per_feed_proxy_host\" value=\"$proxy_host\"
+				id=\"options_per_feed_proxy_host\">&nbsp;<label for=\"options_per_feed_proxy_host\">".__('Proxy host')."</label>";
 
 		print "<br><input dojoType=\"dijit.form.NumberTextBox\"
 				style=\"width : 20em;\"
-				name=\"proxy_per_feed_port\" value=\"$proxy[1]\"
-				id=\"proxy_per_feed_port\">&nbsp;<label for=\"proxy_per_feed_port\">".__('Proxy port')."</label>";
+				name=\"options_per_feed_proxy_port\" value=\"$proxy_port\"
+				id=\"options_per_feed_proxy_port\">&nbsp;<label for=\"options_per_feed_proxy_port\">".__('Proxy port')."</label>";
+
+		print "<br>
+				<input dojoType=\"dijit.form.TextBox\"
+				style=\"width : 20em;\"
+				name=\"options_per_feed_useragent\" value=\"$user_agent\"
+				id=\"options_per_feed_useragent\">&nbsp;<label for=\"options_per_feed_useragent\">".__('User-Agent')."</label>";
 
 		print "</div>";
 	}
@@ -228,33 +274,39 @@ class Proxy_Per_Feed extends Plugin {
 		$enabled_feeds = $this->host->get($this, "enabled_feeds");
 		if (!is_array($enabled_feeds)) $enabled_feeds = array();
 
-		$proxy_feeds = $this->host->get($this, "proxy_feeds");
-		if (!is_array($proxy_feeds)) $proxy_feeds = array();
+		$options_feeds = $this->host->get($this, "options_feeds");
+		if (!is_array($options_feeds)) $options_feeds = array();
 
-		$enable = checkbox_to_sql_bool($_POST["proxy_per_feed_enabled"]) == 'true';
+		$enable = checkbox_to_sql_bool($_POST["options_per_feed_enabled"]) == 'true';
 		$key = array_search($feed_id, $enabled_feeds);
 
-		$proxy = isset($proxy_feeds[$feed_id]) !== FALSE ? $proxy_feeds[$feed_id] : array("","");
+		$options = isset($options_feeds[$feed_id]) !== FALSE ? $options_feeds[$feed_id] : array(
+			"proxy_host": "",
+			"proxy_port": "",
+			"user_agent": ""
+		);
 
-		$proxy_host = isset($_POST["proxy_per_feed_host"]) ? db_escape_string($_POST["proxy_per_feed_host"]) : '';
-		$proxy_port = isset($_POST["proxy_per_feed_port"]) ? db_escape_string($_POST["proxy_per_feed_port"]) : '';
+		$proxy_host = isset($_POST["options_per_feed_proxy_host"]) ? db_escape_string($_POST["options_per_feed_proxy_host"]) : '';
+		$proxy_port = isset($_POST["options_per_feed_proxy_port"]) ? db_escape_string($_POST["options_per_feed_proxy_port"]) : '';
+		$user_agent = isset($_POST["options_per_feed_useragent"]) ? db_escape_string($_POST["options_per_feed_useragent"]) : '';
 
 		if ($enable) {
 			if ($key === FALSE) {
 				array_push($enabled_feeds, $feed_id);
 			}
-			$proxy[0] = $proxy_host;
-			$proxy[1] = $proxy_port;
-			$proxy_feeds[$feed_id] = $proxy;
+			$options["proxy_host"] = $proxy_host;
+			$options["proxy_port"] = $proxy_port;
+			$options["user_agent"] = $user_agent;
+			$options_feeds[$feed_id] = $options;
 		} else {
 			if ($key !== FALSE) {
 				unset($enabled_feeds[$key]);
-				unset($proxy_feeds[$feed_id]);
+				unset($options_feeds[$feed_id]);
 			}
 		}
 
 		$this->host->set($this, "enabled_feeds", $enabled_feeds);
-		$this->host->set($this, "proxy_feeds", $proxy_feeds);
+		$this->host->set($this, "options_feeds", $options_feeds);
 	}
 
 	function api_version() {

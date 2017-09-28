@@ -1,2 +1,5 @@
-# proxy_per_feed
-Tiny-Tiny-RSS plugin - proxy settings per feed
+# options_per_feed
+
+Tiny-Tiny-RSS plugin
+- proxy settings per feed
+- user-agent per feed
