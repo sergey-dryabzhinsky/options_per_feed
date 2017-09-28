@@ -11,7 +11,7 @@
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.2.2
+ * @version: 1.2.3
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
@@ -23,7 +23,7 @@ class Options_Per_Feed extends Plugin
 
 	public function about()
 	{
-		return array(1.2.2,
+		return array(1.23,	// 1.2.3
 			"Try to set options to only selected feeds (CURL needed)",
 			"SergeyD");
 	}
