@@ -11,7 +11,7 @@
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.2.3
+ * @version: 1.2.4
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
@@ -23,7 +23,7 @@ class Options_Per_Feed extends Plugin
 
 	public function about()
 	{
-		return array(1.23,	// 1.2.3
+		return array(1.24,	// 1.2.4
 			"Try to set options to only selected feeds (CURL needed)",
 			"SergeyD");
 	}
@@ -62,8 +62,6 @@ class Options_Per_Feed extends Plugin
 		$host->add_hook($host::HOOK_FETCH_FEED, $this);
 		$host->add_hook($host::HOOK_PREFS_EDIT_FEED, $this);
 		$host->add_hook($host::HOOK_PREFS_SAVE_FEED, $this);
-
-		$host->add_filter_action($this, "action_inline", __("Inline content"));
 	}
 
 	public function hook_fetch_feed($feed_data, $fetch_url, $owner_uid, $feed, $last_article_timestamp, $auth_login, $auth_pass)
@@ -105,7 +103,7 @@ class Options_Per_Feed extends Plugin
 		$options_feeds = $this->host->get($this, "options_feeds");
 		if (!is_array($options_feeds)) return $feed_data;
 
-		$options = isset($options_feeds[$key]) !== FALSE ? $options_feeds[$key] : array(
+		$options = isset($options_feeds[$feed]) !== FALSE ? $options_feeds[$feed] : array(
 			"proxy_host" => "",
 			"proxy_port" => "",
 			"user_agent" => "",
@@ -119,7 +117,6 @@ class Options_Per_Feed extends Plugin
 		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, defined('FEED_FETCH_CONNECT_TIMEOUT') ? FEED_FETCH_CONNECT_TIMEOUT : 5);
 		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 		curl_setopt($ch, CURLOPT_MAXREDIRS, 20);
-		curl_setopt($ch, CURLOPT_HEADER, true);
 		curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_ENCODING, "");
