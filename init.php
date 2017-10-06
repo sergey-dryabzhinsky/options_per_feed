@@ -11,7 +11,7 @@
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.2.4
+ * @version: 1.2.5
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
@@ -23,7 +23,7 @@ class Options_Per_Feed extends Plugin
 
 	public function about()
 	{
-		return array(1.24,	// 1.2.4
+		return array(1.25,	// 1.2.5
 			"Try to set options to only selected feeds (CURL needed)",
 			"SergeyD");
 	}
@@ -111,6 +111,8 @@ class Options_Per_Feed extends Plugin
 		);
 		if (empty($options["proxy_host"]) && empty($options["user_agent"]) && !empty($options["ssl_verify"])) return $feed_data;
 
+		$fetch_curl_used = true;
+
 		$ch = curl_init($fetch_url);
 
 		curl_setopt($ch, CURLOPT_TIMEOUT, defined('FEED_FETCH_TIMEOUT') ? FEED_FETCH_TIMEOUT : 15);
@@ -119,6 +121,7 @@ class Options_Per_Feed extends Plugin
 		curl_setopt($ch, CURLOPT_MAXREDIRS, 20);
 		curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HEADER, true);
 		curl_setopt($ch, CURLOPT_ENCODING, "");
 
 		if (defined("CURLOPT_TCP_FASTOPEN")) {
@@ -146,7 +149,19 @@ class Options_Per_Feed extends Plugin
 			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 		}
 
-		$feed_data = @curl_exec($ch);
+		$ret = @curl_exec($ch);
+
+		$headers_length = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+		$headers = explode("\r\n", substr($ret, 0, $headers_length));
+		$feed_data = substr($ret, $headers_length);
+
+		foreach ($headers as $header) {
+			list ($key, $value) = explode(": ", $header);
+
+			if (strtolower($key) == "last-modified") {
+				$fetch_last_modified = $value;
+			}
+		}
 
 		if (curl_errno($ch) === 23 || curl_errno($ch) === 61) {
 			curl_setopt($ch, CURLOPT_ENCODING, 'none');
@@ -158,7 +173,7 @@ class Options_Per_Feed extends Plugin
 
 		$fetch_last_error_code = $http_code;
 
-		if ($http_code != 200 || $type && strpos($fetch_last_content_type, "$type") === false) {
+		if ($http_code != 200) {
 			if (curl_errno($ch) != 0) {
 				$fetch_last_error = curl_errno($ch) . " " . curl_error($ch);
 			} else {
