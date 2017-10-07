@@ -11,7 +11,7 @@
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.2.6
+ * @version: 1.2.7
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
@@ -23,7 +23,7 @@ class Options_Per_Feed extends Plugin
 
 	public function about()
 	{
-		return array(1.26,	// 1.2.6
+		return array(1.27,	// 1.2.7
 			"Try to set options to only selected feeds (CURL needed)",
 			"SergeyD");
 	}
@@ -105,10 +105,11 @@ class Options_Per_Feed extends Plugin
 			"proxy_host" => "",
 			"proxy_port" => "",
 			"user_agent" => "",
+			"cookies" => "",
 			"ssl_verify" => true,
 			"calc_referer" => false,
 		);
-		if (empty($options["proxy_host"]) && empty($options["user_agent"]) && !empty($options["ssl_verify"]) && empty($options["calc_referer"])) return $feed_data;
+		if (empty($options["proxy_host"]) && empty($options["user_agent"]) && empty($options["cookies"]) && !empty($options["ssl_verify"]) && empty($options["calc_referer"])) return $feed_data;
 
 		$fetch_curl_used = true;
 
@@ -122,6 +123,19 @@ class Options_Per_Feed extends Plugin
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_HEADER, true);
 		curl_setopt($ch, CURLOPT_ENCODING, "");
+
+		$moreHeaders = array(
+			'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+			'Accept-Language: ru,en;q=0.7,en-US;q=0.3',
+			'Connection: keep-alive',
+			'Cache-Control: max-age=0',
+		);
+
+		if (!empty($options["cookies"])) {
+			$moreHeaders[] = 'Cookie: ' . $options['cookies'];
+		}
+
+		curl_setopt($ch, CURLOPT_HTTPHEADER, $moreHeaders);
 
 		if (defined("CURLOPT_TCP_FASTOPEN")) {
 			curl_setopt($ch, CURLOPT_TCP_FASTOPEN, true);
@@ -225,6 +239,7 @@ class Options_Per_Feed extends Plugin
 			"proxy_host" => "",
 			"proxy_port" => "",
 			"user_agent" => "",
+			"cookies" => "",
 			"ssl_verify" => true,
 			"calc_referer" => false,
 		);
@@ -232,6 +247,7 @@ class Options_Per_Feed extends Plugin
 		$proxy_host = $options["proxy_host"];
 		$proxy_port = $options["proxy_port"];
 		$user_agent = $options["user_agent"];
+		$cookies = $options["cookies"];
 		$ssl_verify = !empty($options["ssl_verify"]) ? "checked" : "";
 		$calc_referer = !empty($options["calc_referer"]) ? "checked" : "";
 
@@ -256,6 +272,13 @@ class Options_Per_Feed extends Plugin
 				name=\"options_per_feed_useragent\" value=\"$user_agent\"
 				id=\"options_per_feed_useragent\" placeholder=\"Example: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:55.0) Gecko/20100101 Firefox/55.0\">&nbsp;<label for=\"options_per_feed_useragent\">".__('User-Agent')."</label>"
 			."<br/><small>Try: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:55.0) Gecko/20100101 Firefox/55.0</small>"
+			;
+
+		print "<br/>
+				<input dojoType=\"dijit.form.TextBox\"
+				style=\"width : 20em;\"
+				name=\"options_per_feed_cookies\" value=\"$cookies\"
+				id=\"options_per_feed_cookies\" placeholder=\"Example: PHPSESSID=1234567890;\">&nbsp;<label for=\"options_per_feed_cookies\">".__('Cookies header')."</label>"
 			;
 
 		print "<br/><input dojoType=\"dijit.form.CheckBox\" type=\"checkbox\" id=\"options_per_feed_sslverify\"
@@ -285,6 +308,7 @@ class Options_Per_Feed extends Plugin
 			"proxy_host" => "",
 			"proxy_port" => "",
 			"user_agent" => "",
+			"cookies" => "",
 			"ssl_verify" => true,
 			"calc_referer" => false,
 		);
@@ -292,6 +316,7 @@ class Options_Per_Feed extends Plugin
 		$proxy_host = isset($_POST["options_per_feed_proxy_host"]) ? db_escape_string($_POST["options_per_feed_proxy_host"]) : '';
 		$proxy_port = isset($_POST["options_per_feed_proxy_port"]) ? db_escape_string($_POST["options_per_feed_proxy_port"]) : '';
 		$user_agent = isset($_POST["options_per_feed_useragent"]) ? db_escape_string($_POST["options_per_feed_useragent"]) : '';
+		$cookies = isset($_POST["options_per_feed_cookies"]) ? db_escape_string($_POST["options_per_feed_cookies"]) : '';
 		$ssl_verify = isset($_POST["options_per_feed_sslverify"]) ? checkbox_to_sql_bool($_POST["options_per_feed_sslverify"]) == 'true' : false;
 		$calc_referer = isset($_POST["options_per_feed_calcreferer"]) ? checkbox_to_sql_bool($_POST["options_per_feed_calcreferer"]) == 'true' : false;
 
@@ -302,6 +327,7 @@ class Options_Per_Feed extends Plugin
 			$options["proxy_host"] = $proxy_host;
 			$options["proxy_port"] = (int)$proxy_port;
 			$options["user_agent"] = $user_agent;
+			$options["cookies"] = $cookies;
 			$options["ssl_verify"] = (bool)$ssl_verify;
 			$options["calc_referer"] = (bool)$calc_referer;
 			$options_feeds[$feed_id] = $options;
