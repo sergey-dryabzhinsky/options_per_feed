@@ -11,7 +11,7 @@
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.2.5
+ * @version: 1.2.6
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
@@ -23,7 +23,7 @@ class Options_Per_Feed extends Plugin
 
 	public function about()
 	{
-		return array(1.25,	// 1.2.5
+		return array(1.26,	// 1.2.6
 			"Try to set options to only selected feeds (CURL needed)",
 			"SergeyD");
 	}
@@ -91,8 +91,6 @@ class Options_Per_Feed extends Plugin
 			!$auth_login && !$auth_pass &&
 			filemtime($cache_filename) > time() - 30) {
 
-			_debug("plugin[options_per_feed]: using local cache [$cache_filename].", $debug_enabled);
-
 			@$feed_data = file_get_contents($cache_filename);
 
 			if ($feed_data) {
@@ -108,8 +106,9 @@ class Options_Per_Feed extends Plugin
 			"proxy_port" => "",
 			"user_agent" => "",
 			"ssl_verify" => true,
+			"calc_referer" => false,
 		);
-		if (empty($options["proxy_host"]) && empty($options["user_agent"]) && !empty($options["ssl_verify"])) return $feed_data;
+		if (empty($options["proxy_host"]) && empty($options["user_agent"]) && !empty($options["ssl_verify"]) && empty($options["calc_referer"])) return $feed_data;
 
 		$fetch_curl_used = true;
 
@@ -149,10 +148,25 @@ class Options_Per_Feed extends Plugin
 			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 		}
 
+		if (!empty($options["calc_referer"])) {
+			$refArr = parse_url($fetch_url);
+			$referer = $refArr["scheme"] . '://' . $refArr["host"];
+			if (!empty($refArr["port"]) $referer .= ':' . $refArr["port"];
+			$referer .= $refArr["path"];
+			if (!empty($refArr["query"]) $referer .= '?' . $refArr["query"];
+			curl_setopt($ch, CURLOPT_REFERER, $referer);
+		}
+
 		$ret = @curl_exec($ch);
 
+		if (curl_errno($ch) === 23 || curl_errno($ch) === 61) {
+			curl_setopt($ch, CURLOPT_ENCODING, 'none');
+			$ret = @curl_exec($ch);
+		}
+
 		$headers_length = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-		$headers = explode("\r\n", substr($ret, 0, $headers_length));
+		$headers_raw = substr($ret, 0, $headers_length);
+		$headers = explode("\r\n", $headers_raw);
 		$feed_data = substr($ret, $headers_length);
 
 		foreach ($headers as $header) {
@@ -161,11 +175,6 @@ class Options_Per_Feed extends Plugin
 			if (strtolower($key) == "last-modified") {
 				$fetch_last_modified = $value;
 			}
-		}
-
-		if (curl_errno($ch) === 23 || curl_errno($ch) === 61) {
-			curl_setopt($ch, CURLOPT_ENCODING, 'none');
-			$feed_data = @curl_exec($ch);
 		}
 
 		$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -179,6 +188,9 @@ class Options_Per_Feed extends Plugin
 			} else {
 				$fetch_last_error = "HTTP Code: $http_code";
 			}
+			error_log("Error headers:\n".$headers_raw);
+			error_log("Error data:\n".$feed_data);
+
 			$fetch_last_error_content = $feed_data;
 			curl_close($ch);
 			return false;
@@ -214,12 +226,14 @@ class Options_Per_Feed extends Plugin
 			"proxy_port" => "",
 			"user_agent" => "",
 			"ssl_verify" => true,
+			"calc_referer" => false,
 		);
 
 		$proxy_host = $options["proxy_host"];
 		$proxy_port = $options["proxy_port"];
 		$user_agent = $options["user_agent"];
 		$ssl_verify = !empty($options["ssl_verify"]) ? "checked" : "";
+		$calc_referer = !empty($options["calc_referer"]) ? "checked" : "";
 
 		print "<hr/><input dojoType=\"dijit.form.CheckBox\" type=\"checkbox\" id=\"options_per_feed_enabled\"
 			name=\"options_per_feed_enabled\"
@@ -248,6 +262,10 @@ class Options_Per_Feed extends Plugin
 			name=\"options_per_feed_sslverify\"
 			$ssl_verify>&nbsp;<label for=\"options_per_feed_sslverify\">".__('Verify SSL certificate')."</label>";
 
+		print "<br/><input dojoType=\"dijit.form.CheckBox\" type=\"checkbox\" id=\"options_per_feed_calcreferer\"
+			name=\"options_per_feed_calcreferer\"
+			$calc_referer>&nbsp;<label for=\"options_per_feed_calcreferer\">".__('Calculate feed referer')."</label>";
+
 
 		print "</div>";
 	}
@@ -268,12 +286,14 @@ class Options_Per_Feed extends Plugin
 			"proxy_port" => "",
 			"user_agent" => "",
 			"ssl_verify" => true,
+			"calc_referer" => false,
 		);
 
 		$proxy_host = isset($_POST["options_per_feed_proxy_host"]) ? db_escape_string($_POST["options_per_feed_proxy_host"]) : '';
 		$proxy_port = isset($_POST["options_per_feed_proxy_port"]) ? db_escape_string($_POST["options_per_feed_proxy_port"]) : '';
 		$user_agent = isset($_POST["options_per_feed_useragent"]) ? db_escape_string($_POST["options_per_feed_useragent"]) : '';
-		$ssl_verify = isset($_POST["options_per_feed_sslverify"]) ? db_escape_string($_POST["options_per_feed_sslverify"]) : '';
+		$ssl_verify = isset($_POST["options_per_feed_sslverify"]) ? checkbox_to_sql_bool($_POST["options_per_feed_sslverify"]) == 'true' : false;
+		$calc_referer = isset($_POST["options_per_feed_calcreferer"]) ? checkbox_to_sql_bool($_POST["options_per_feed_calcreferer"]) == 'true' : false;
 
 		if ($enable) {
 			if ($key === FALSE) {
@@ -283,6 +303,7 @@ class Options_Per_Feed extends Plugin
 			$options["proxy_port"] = (int)$proxy_port;
 			$options["user_agent"] = $user_agent;
 			$options["ssl_verify"] = (bool)$ssl_verify;
+			$options["calc_referer"] = (bool)$calc_referer;
 			$options_feeds[$feed_id] = $options;
 		} else {
 			if ($key !== FALSE) {
