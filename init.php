@@ -151,9 +151,9 @@ class Options_Per_Feed extends Plugin
 		if (!empty($options["calc_referer"])) {
 			$refArr = parse_url($fetch_url);
 			$referer = $refArr["scheme"] . '://' . $refArr["host"];
-			if (!empty($refArr["port"]) $referer .= ':' . $refArr["port"];
+			if (!empty($refArr["port"])) $referer .= ':' . $refArr["port"];
 			$referer .= $refArr["path"];
-			if (!empty($refArr["query"]) $referer .= '?' . $refArr["query"];
+			if (!empty($refArr["query"])) $referer .= '?' . $refArr["query"];
 			curl_setopt($ch, CURLOPT_REFERER, $referer);
 		}
 
