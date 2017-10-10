@@ -11,7 +11,7 @@
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.2.7
+ * @version: 1.2.8
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
@@ -23,7 +23,7 @@ class Options_Per_Feed extends Plugin
 
 	public function about()
 	{
-		return array(1.27,	// 1.2.7
+		return array(1.28,	// 1.2.8
 			"Try to set options to only selected feeds (CURL needed)",
 			"SergeyD");
 	}
@@ -124,8 +124,12 @@ class Options_Per_Feed extends Plugin
 		curl_setopt($ch, CURLOPT_HEADER, true);
 		curl_setopt($ch, CURLOPT_ENCODING, "");
 
+		if (defined('CURL_HTTP_VERSION_1_1')) {
+			curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+		}
+
 		$moreHeaders = array(
-			'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+			'Accept: application/atom+xml,application/rss+xml;q=0.9,application/rdf+xml;q=0.8,application/xml;q=0.7,text/xml;q=0.7,*/*;q=0.1',
 			'Accept-Language: ru,en;q=0.7,en-US;q=0.3',
 			'Connection: keep-alive',
 			'Cache-Control: max-age=0',
@@ -168,6 +172,8 @@ class Options_Per_Feed extends Plugin
 			if (!empty($refArr["port"])) $referer .= ':' . $refArr["port"];
 			$referer .= $refArr["path"];
 			if (!empty($refArr["query"])) $referer .= '?' . $refArr["query"];
+
+			error_log(__METHOD__ . " - Referer: ".$referer);
 			curl_setopt($ch, CURLOPT_REFERER, $referer);
 		}
 
@@ -202,8 +208,8 @@ class Options_Per_Feed extends Plugin
 			} else {
 				$fetch_last_error = "HTTP Code: $http_code";
 			}
-			error_log("Error headers:\n".$headers_raw);
-			error_log("Error data:\n".$feed_data);
+			error_log(__METHOD__ . " - Error headers:\n".$headers_raw);
+			error_log(__METHOD__ . " - Error data:\n".$feed_data);
 
 			$fetch_last_error_content = $feed_data;
 			curl_close($ch);
