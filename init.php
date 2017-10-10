@@ -11,7 +11,7 @@
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.2.9
+ * @version: 1.3.0
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
@@ -23,7 +23,7 @@ class Options_Per_Feed extends Plugin
 
 	public function about()
 	{
-		return array(1.29,	// 1.2.9
+		return array(1.30,	// 1.3.0
 			"Try to set options to only selected feeds (CURL needed)",
 			"SergeyD");
 	}
@@ -171,7 +171,8 @@ class Options_Per_Feed extends Plugin
 			$referer = $refArr["scheme"] . '://' . $refArr["host"];
 			if (!empty($refArr["port"])) $referer .= ':' . $refArr["port"];
 			if (empty($refArr["query"])) {
-				$path = explode("/", $refArr["path"]);
+				$path = rtrim($refArr["path"], "/");
+				$path = explode("/", $path);
 				array_pop($path);
 				if (!$path) $path = array("/");
 				$referer .= join("/", $path);
