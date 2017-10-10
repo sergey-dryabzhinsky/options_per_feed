@@ -11,7 +11,7 @@
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.2.8
+ * @version: 1.2.9
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
@@ -23,7 +23,7 @@ class Options_Per_Feed extends Plugin
 
 	public function about()
 	{
-		return array(1.28,	// 1.2.8
+		return array(1.29,	// 1.2.9
 			"Try to set options to only selected feeds (CURL needed)",
 			"SergeyD");
 	}
@@ -170,8 +170,14 @@ class Options_Per_Feed extends Plugin
 			$refArr = parse_url($fetch_url);
 			$referer = $refArr["scheme"] . '://' . $refArr["host"];
 			if (!empty($refArr["port"])) $referer .= ':' . $refArr["port"];
-			$referer .= $refArr["path"];
-			if (!empty($refArr["query"])) $referer .= '?' . $refArr["query"];
+			if (empty($refArr["query"])) {
+				$path = explode("/", $refArr["path"]);
+				array_pop($path);
+				if (!$path) $path = array("/");
+				$referer .= join("/", $path);
+			} else {
+				$referer .= $refArr["path"];
+			}
 
 			error_log(__METHOD__ . " - Referer: ".$referer);
 			curl_setopt($ch, CURLOPT_REFERER, $referer);
