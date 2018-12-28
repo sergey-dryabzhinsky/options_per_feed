@@ -11,7 +11,7 @@
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.3.0
+ * @version: 1.4.0
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
@@ -23,7 +23,7 @@ class Options_Per_Feed extends Plugin
 
 	public function about()
 	{
-		return array(1.30,	// 1.3.0
+		return array(1.40,	// 1.4.0
 			"Try to set options to only selected feeds (CURL needed)",
 			"SergeyD");
 	}
@@ -239,16 +239,13 @@ class Options_Per_Feed extends Plugin
 		print "<div class=\"dlgSec\">".__("Options per feed")."</div>";
 		print "<div class=\"dlgSecCont\">";
 
-		$enabled_feeds = $this->host->get($this, "enabled_feeds");
-		if (!is_array($enabled_feeds)) $enabled_feeds = array();
-
 		$options_feeds = $this->host->get($this, "options_feeds");
 		if (!is_array($options_feeds)) $options_feeds = array();
 
-		$key = isset($options_feeds[$feed_id]);
-		$checked = $key !== FALSE ? "checked" : "";
+		$has = isset($options_feeds[$feed_id]);
+		$checked = $has ? "checked" : "";
 
-		$options = isset($options_feeds[$feed_id]) !== FALSE ? $options_feeds[$feed_id] : array(
+		$options = $has ? $options_feeds[$feed_id] : array(
 			"proxy_host" => "",
 			"proxy_port" => "",
 			"user_agent" => "",
@@ -308,16 +305,13 @@ class Options_Per_Feed extends Plugin
 
 	public function hook_prefs_save_feed($feed_id)
 	{
-		$enabled_feeds = $this->host->get($this, "enabled_feeds");
-		if (!is_array($enabled_feeds)) $enabled_feeds = array();
-
 		$options_feeds = $this->host->get($this, "options_feeds");
 		if (!is_array($options_feeds)) $options_feeds = array();
 
-		$enable = checkbox_to_sql_bool($_POST["options_per_feed_enabled"]) == 'true';
-		$key = array_search($feed_id, $enabled_feeds);
+		$enable = checkbox_to_sql_bool($_POST["options_per_feed_enabled"]) === 1;
+		$has = isset($options_feeds[$feed_id]);
 
-		$options = isset($options_feeds[$feed_id]) !== FALSE ? $options_feeds[$feed_id] : array(
+		$options = $has ? $options_feeds[$feed_id] : array(
 			"proxy_host" => "",
 			"proxy_port" => "",
 			"user_agent" => "",
@@ -330,13 +324,10 @@ class Options_Per_Feed extends Plugin
 		$proxy_port = isset($_POST["options_per_feed_proxy_port"]) ? db_escape_string($_POST["options_per_feed_proxy_port"]) : '';
 		$user_agent = isset($_POST["options_per_feed_useragent"]) ? db_escape_string($_POST["options_per_feed_useragent"]) : '';
 		$cookies = isset($_POST["options_per_feed_cookies"]) ? db_escape_string($_POST["options_per_feed_cookies"]) : '';
-		$ssl_verify = isset($_POST["options_per_feed_sslverify"]) ? checkbox_to_sql_bool($_POST["options_per_feed_sslverify"]) == 'true' : false;
-		$calc_referer = isset($_POST["options_per_feed_calcreferer"]) ? checkbox_to_sql_bool($_POST["options_per_feed_calcreferer"]) == 'true' : false;
+		$ssl_verify = isset($_POST["options_per_feed_sslverify"]) ? checkbox_to_sql_bool($_POST["options_per_feed_sslverify"]) === 1 : false;
+		$calc_referer = isset($_POST["options_per_feed_calcreferer"]) ? checkbox_to_sql_bool($_POST["options_per_feed_calcreferer"]) === 1 : false;
 
 		if ($enable) {
-			if ($key === FALSE) {
-				array_push($enabled_feeds, $feed_id);
-			}
 			$options["proxy_host"] = $proxy_host;
 			$options["proxy_port"] = (int)$proxy_port;
 			$options["user_agent"] = $user_agent;
@@ -345,13 +336,11 @@ class Options_Per_Feed extends Plugin
 			$options["calc_referer"] = (bool)$calc_referer;
 			$options_feeds[$feed_id] = $options;
 		} else {
-			if ($key !== FALSE) {
-				unset($enabled_feeds[$key]);
+			if ($has) {
 				unset($options_feeds[$feed_id]);
 			}
 		}
 
-		$this->host->set($this, "enabled_feeds", $enabled_feeds);
 		$this->host->set($this, "options_feeds", $options_feeds);
 	}
 
@@ -359,21 +348,4 @@ class Options_Per_Feed extends Plugin
 	{
 		return 2;
 	}
-
-	private function filter_unknown_feeds($enabled_feeds)
-	{
-		$tmp = array();
-
-		foreach ($enabled_feeds as $feed) {
-
-			$result = db_query("SELECT id FROM ttrss_feeds WHERE id = '$feed' AND owner_uid = " . $_SESSION["uid"]);
-
-			if (db_num_rows($result) != 0) {
-				array_push($tmp, $feed);
-			}
-		}
-
-		return $tmp;
-	}
-
 }
