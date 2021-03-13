@@ -345,8 +345,7 @@ class Options_Per_Feed extends Plugin
 	}
 
 	public function db_escape_string($s, $strip_tags = true) {
-		if ($strip_tags) $s = strip_tags($s);
-		return pg_escape_string($s);
+		return Db::escape_string($s, $strip_tags);
 	}
 
 	public function api_version()
