@@ -336,10 +336,10 @@ class Options_Per_Feed extends Plugin
 			"calc_referer" => false,
 		);
 
-		$proxy_host = isset($_POST["options_per_feed_proxy_host"]) ? $this->pdo->quote($_POST["options_per_feed_proxy_host"]) : '';
-		$proxy_port = isset($_POST["options_per_feed_proxy_port"]) ? $this->pdo->quote($_POST["options_per_feed_proxy_port"]) : '';
-		$user_agent = isset($_POST["options_per_feed_useragent"]) ? $this->pdo->quote($_POST["options_per_feed_useragent"]) : '';
-		$cookies = isset($_POST["options_per_feed_cookies"]) ? $this->pdo->quote($_POST["options_per_feed_cookies"]) : '';
+		$proxy_host = isset($_POST["options_per_feed_proxy_host"]) ? strip_tags(strval($_POST["options_per_feed_proxy_host"])) : '';
+		$proxy_port = isset($_POST["options_per_feed_proxy_port"]) ? strip_tags(strval($_POST["options_per_feed_proxy_port"])) : '';
+		$user_agent = isset($_POST["options_per_feed_useragent"]) ? strip_tags(strval($_POST["options_per_feed_useragent"])) : '';
+		$cookies = isset($_POST["options_per_feed_cookies"]) ? strip_tags(strval($_POST["options_per_feed_cookies"])) : '';
 		$ssl_verify = isset($_POST["options_per_feed_sslverify"]) ? checkbox_to_sql_bool($_POST["options_per_feed_sslverify"]) === 1 : false;
 		$calc_referer = isset($_POST["options_per_feed_calcreferer"]) ? checkbox_to_sql_bool($_POST["options_per_feed_calcreferer"]) === 1 : false;
 
