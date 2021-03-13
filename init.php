@@ -116,7 +116,7 @@ class Options_Per_Feed extends Plugin
 		$ch = curl_init($fetch_url);
 
 		curl_setopt($ch, CURLOPT_TIMEOUT, Config::get(Config::FEED_FETCH_TIMEOUT));
-		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, Config::get(Config::FEED_FETCH_CONNECT_TIMEOUT));
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
 		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 		curl_setopt($ch, CURLOPT_MAXREDIRS, 20);
 		curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
