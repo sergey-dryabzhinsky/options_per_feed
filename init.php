@@ -23,7 +23,7 @@ class Options_Per_Feed extends Plugin
 
 	public function about()
 	{
-		return array(1.40,	// 1.4.0
+		return array(1.41,	// 1.4.1
 			"Try to set options to only selected feeds (CURL needed)",
 			"SergeyD");
 	}
@@ -83,7 +83,10 @@ class Options_Per_Feed extends Plugin
 
 
 		/* Try to use cache first */
-		$cache_filename = Config::get(Config::CACHE_DIR) . "/simplepie/" . sha1($fetch_url) . ".xml";
+		if (defined("CACHE_DIR"))
+			$cache_filename = CACHE_DIR . "/simplepie/" . sha1($fetch_url) . ".xml";
+		if (class_exists("Config"))
+			$cache_filename = Config::get(Config::CACHE_DIR) . "/simplepie/" . sha1($fetch_url) . ".xml";
 
 		if (!$feed_data &&
 			file_exists($cache_filename) &&
@@ -115,8 +118,20 @@ class Options_Per_Feed extends Plugin
 
 		$ch = curl_init($fetch_url);
 
-		curl_setopt($ch, CURLOPT_TIMEOUT, Config::get(Config::FEED_FETCH_TIMEOUT));
-		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+		// RKN slowed internet - need more time to fetch
+		$timeout = 30;
+		if (defined('FEED_FETCH_TIMEOUT')) $timeout = FEED_FETCH_TIMEOUT;
+		$con_timeout = 5;
+		if (defined('FILE_FETCH_CONNECT_TIMEOUT')) $con_timeout = FILE_FETCH_CONNECT_TIMEOUT;
+		if (class_exists("Config")) {
+			$_ = Config::get(Config::FEED_FETCH_TIMEOUT);
+			if ($_) $timeout = $_;
+			$_ = Config::get(Config::FILE_FETCH_CONNECT_TIMEOUT);
+			if ($_) $con_timeout = $_;
+		}
+
+		curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $con_timeout);
 		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 		curl_setopt($ch, CURLOPT_MAXREDIRS, 20);
 		curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
@@ -186,6 +201,7 @@ class Options_Per_Feed extends Plugin
 
 		$ret = @curl_exec($ch);
 
+		// Fail to fetch with gzip/deflate
 		if (curl_errno($ch) === 23 || curl_errno($ch) === 61) {
 			curl_setopt($ch, CURLOPT_ENCODING, 'none');
 			$ret = @curl_exec($ch);
@@ -320,10 +336,10 @@ class Options_Per_Feed extends Plugin
 			"calc_referer" => false,
 		);
 
-		$proxy_host = isset($_POST["options_per_feed_proxy_host"]) ? $this->db_escape_string($_POST["options_per_feed_proxy_host"]) : '';
-		$proxy_port = isset($_POST["options_per_feed_proxy_port"]) ? $this->db_escape_string($_POST["options_per_feed_proxy_port"]) : '';
-		$user_agent = isset($_POST["options_per_feed_useragent"]) ? $this->db_escape_string($_POST["options_per_feed_useragent"]) : '';
-		$cookies = isset($_POST["options_per_feed_cookies"]) ? $this->db_escape_string($_POST["options_per_feed_cookies"]) : '';
+		$proxy_host = isset($_POST["options_per_feed_proxy_host"]) ? strip_tags(strval($_POST["options_per_feed_proxy_host"])) : '';
+		$proxy_port = isset($_POST["options_per_feed_proxy_port"]) ? strip_tags(strval($_POST["options_per_feed_proxy_port"])) : '';
+		$user_agent = isset($_POST["options_per_feed_useragent"]) ? strip_tags(strval($_POST["options_per_feed_useragent"])) : '';
+		$cookies = isset($_POST["options_per_feed_cookies"]) ? strip_tags(strval($_POST["options_per_feed_cookies"])) : '';
 		$ssl_verify = isset($_POST["options_per_feed_sslverify"]) ? checkbox_to_sql_bool($_POST["options_per_feed_sslverify"]) === 1 : false;
 		$calc_referer = isset($_POST["options_per_feed_calcreferer"]) ? checkbox_to_sql_bool($_POST["options_per_feed_calcreferer"]) === 1 : false;
 
