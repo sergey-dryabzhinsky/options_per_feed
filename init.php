@@ -360,6 +360,10 @@ class Options_Per_Feed extends Plugin
 		$this->host->set($this, "options_feeds", $options_feeds);
 	}
 
+	public function db_escape_string($s, $strip_tags = true) {
+		return Db::escape_string($s, $strip_tags);
+	}
+
 	public function api_version()
 	{
 		return 2;
