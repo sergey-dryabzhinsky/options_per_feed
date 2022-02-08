@@ -11,7 +11,7 @@
  * Depends: curl
  *
  * @author: Sergey Dryabzhinsky <sergey.dryabzhinsky@gmail.com>
- * @version: 1.4.0
+ * @version: 1.4.1
  * @since: 2017-09-28
  * @copyright: GPLv3
  */
@@ -83,7 +83,7 @@ class Options_Per_Feed extends Plugin
 
 
 		/* Try to use cache first */
-		$cache_filename = CACHE_DIR . "/simplepie/" . sha1($fetch_url) . ".xml";
+		$cache_filename = Config::get(Config::CACHE_DIR) . "/simplepie/" . sha1($fetch_url) . ".xml";
 
 		if (!$feed_data &&
 			file_exists($cache_filename) &&
@@ -115,8 +115,8 @@ class Options_Per_Feed extends Plugin
 
 		$ch = curl_init($fetch_url);
 
-		curl_setopt($ch, CURLOPT_TIMEOUT, defined('FEED_FETCH_TIMEOUT') ? FEED_FETCH_TIMEOUT : 15);
-		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, defined('FEED_FETCH_CONNECT_TIMEOUT') ? FEED_FETCH_CONNECT_TIMEOUT : 5);
+		curl_setopt($ch, CURLOPT_TIMEOUT, Config::get(Config::FEED_FETCH_TIMEOUT));
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
 		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 		curl_setopt($ch, CURLOPT_MAXREDIRS, 20);
 		curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
@@ -320,10 +320,10 @@ class Options_Per_Feed extends Plugin
 			"calc_referer" => false,
 		);
 
-		$proxy_host = isset($_POST["options_per_feed_proxy_host"]) ? db_escape_string($_POST["options_per_feed_proxy_host"]) : '';
-		$proxy_port = isset($_POST["options_per_feed_proxy_port"]) ? db_escape_string($_POST["options_per_feed_proxy_port"]) : '';
-		$user_agent = isset($_POST["options_per_feed_useragent"]) ? db_escape_string($_POST["options_per_feed_useragent"]) : '';
-		$cookies = isset($_POST["options_per_feed_cookies"]) ? db_escape_string($_POST["options_per_feed_cookies"]) : '';
+		$proxy_host = isset($_POST["options_per_feed_proxy_host"]) ? $this->db_escape_string($_POST["options_per_feed_proxy_host"]) : '';
+		$proxy_port = isset($_POST["options_per_feed_proxy_port"]) ? $this->db_escape_string($_POST["options_per_feed_proxy_port"]) : '';
+		$user_agent = isset($_POST["options_per_feed_useragent"]) ? $this->db_escape_string($_POST["options_per_feed_useragent"]) : '';
+		$cookies = isset($_POST["options_per_feed_cookies"]) ? $this->db_escape_string($_POST["options_per_feed_cookies"]) : '';
 		$ssl_verify = isset($_POST["options_per_feed_sslverify"]) ? checkbox_to_sql_bool($_POST["options_per_feed_sslverify"]) === 1 : false;
 		$calc_referer = isset($_POST["options_per_feed_calcreferer"]) ? checkbox_to_sql_bool($_POST["options_per_feed_calcreferer"]) === 1 : false;
 
@@ -342,6 +342,10 @@ class Options_Per_Feed extends Plugin
 		}
 
 		$this->host->set($this, "options_feeds", $options_feeds);
+	}
+
+	public function db_escape_string($s, $strip_tags = true) {
+		return Db::escape_string($s, $strip_tags);
 	}
 
 	public function api_version()
