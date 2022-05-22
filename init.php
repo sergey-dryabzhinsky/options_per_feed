@@ -174,7 +174,7 @@ class Options_Per_Feed extends Plugin
 		if (!empty($options["user_agent"])) {
 			curl_setopt($ch, CURLOPT_USERAGENT, $options["user_agent"]);
 		} else {
-			curl_setopt($ch, CURLOPT_USERAGENT, SELF_USER_AGENT);
+			curl_setopt($ch, CURLOPT_USERAGENT, Config::get_user_agent());
 		}
 
 		if (empty($options["ssl_verify"])) {
