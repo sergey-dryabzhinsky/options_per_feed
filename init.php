@@ -174,7 +174,16 @@ class Options_Per_Feed extends Plugin
 		if (!empty($options["user_agent"])) {
 			curl_setopt($ch, CURLOPT_USERAGENT, $options["user_agent"]);
 		} else {
-			curl_setopt($ch, CURLOPT_USERAGENT, SELF_USER_AGENT);
+
+			/**
+			 * 2021-8-23, ttrss has removed SELF_USER_AGENT custom constant, replaced with configurable Config::HTTP_USER_AGENT / Config::get_user_agent()
+			 * from https://git.tt-rss.org/fox/tt-rss.git/commit/?id=2c931df77ccba5e76bc1865584e870219596ff69
+			 */
+			if (defined('SELF_USER_AGENT')) {
+				curl_setopt($ch, CURLOPT_USERAGENT, SELF_USER_AGENT);
+			} else {
+				curl_setopt($ch, CURLOPT_USERAGENT, Config::get_user_agent());
+			}
 		}
 
 		if (empty($options["ssl_verify"])) {
